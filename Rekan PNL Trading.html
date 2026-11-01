@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rekan PNL - Trading Journal & Analytics</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Font Inter & Chart.js & Lucide Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+        .dark ::-webkit-scrollbar-thumb { background: #4b5563; }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col selection:bg-brand-500 selection:text-white transition-colors duration-300">
+
+    <!-- Notification Toast Container -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2"></div>
+
+    <!-- Top Navigation Bar -->
+    <header class="border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-40 transition-colors duration-300">
+        <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-2.5 min-w-0 mr-2">
+                <div class="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 flex items-center justify-center shadow-lg shadow-brand-500/30 flex-shrink-0">
+                    <i data-lucide="trending-up" class="w-5 h-5 sm:w-6 sm:h-6 text-white"></i>
+                </div>
+                <div class="min-w-0">
+                    <h1 class="text-sm sm:text-lg font-bold truncate bg-gradient-to-r from-slate-900 via-slate-800 to-slate-600 dark:from-white dark:via-slate-200 dark:to-slate-400 bg-clip-text text-transparent">Rekan PNL</h1>
+                    <p class="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">Trading Journal</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-1.5 sm:space-x-2 flex-shrink-0">
+                <!-- Theme Toggle Button -->
+                <button onclick="toggleTheme()" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition text-slate-600 dark:text-slate-300" title="Ganti Tema">
+                    <i id="theme-icon" data-lucide="sun" class="w-4 h-4"></i>
+                </button>
+                <!-- Initial Capital Settings Button -->
+                <button onclick="openCapitalModal()" class="p-2 sm:px-3 sm:py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition flex items-center space-x-1" title="Modal & Drawdown">
+                    <i data-lucide="wallet" class="w-4 h-4 text-brand-500 dark:text-brand-400"></i>
+                    <span class="hidden md:inline text-xs font-medium">Modal</span>
+                </button>
+                <!-- Backup Button -->
+                <button onclick="openExportModal()" class="p-2 sm:px-3 sm:py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition flex items-center space-x-1" title="Backup Data">
+                    <i data-lucide="database" class="w-4 h-4 text-brand-500 dark:text-brand-400"></i>
+                    <span class="hidden md:inline text-xs font-medium">Data</span>
+                </button>
+                <!-- Add Trade Button -->
+                <button onclick="openTradeModal()" class="flex items-center space-x-1 text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 rounded-xl bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white shadow-lg shadow-brand-600/30 transition transform hover:scale-[1.02]">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    <span class="hidden xs:inline">Catat</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- Overview Metric Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Total PnL & Saldo -->
+            <div class="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 relative overflow-hidden group hover:border-slate-300 dark:hover:border-slate-700 transition shadow-sm dark:shadow-none animate-fade-in">
+                <div class="absolute -right-4 -bottom-4 w-24 h-24 bg-brand-500/10 rounded-full blur-xl group-hover:bg-brand-500/20 transition"></div>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm font-medium text-slate-500 dark:text-slate-400">Total Akun & PnL</span>
+                    <div id="pnl-icon-bg" class="p-2 rounded-lg bg-emerald-500/10 text-emerald-500 dark:text-emerald-400">
+                        <i data-lucide="wallet" class="w-5 h-5"></i>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <h2 id="metric-total-pnl" class="text-xl sm:text-2xl font-bold tracking-tight text-emerald-500 dark:text-emerald-400">Rp0</h2>
+                    <p id="metric-current-balance" class="text-xs text-slate-500 dark:text-slate-400 mt-1">Saldo: Rp0</p>
+                </div>
+            </div>
+
+            <!-- Max Drawdown -->
+            <div class="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 relative overflow-hidden group hover:border-slate-300 dark:hover:border-slate-700 transition shadow-sm dark:shadow-none animate-fade-in" style="animation-delay: 0.1s;">
+                <div class="absolute -right-4 -bottom-4 w-24 h-24 bg-rose-500/10 rounded-full blur-xl group-hover:bg-rose-500/20 transition"></div>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm font-medium text-slate-500 dark:text-slate-400">Max Drawdown (MDD)</span>
+                    <div class="p-2 rounded-lg bg-rose-500/10 text-rose-500 dark:text-rose-400">
+                        <i data-lucide="trending-down" class="w-5 h-5"></i>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <h2 id="metric-drawdown" class="text-xl sm:text-2xl font-bold tracking-tight text-rose-500 dark:text-rose-400">0.00%</h2>
+                    <p id="metric-drawdown-nominal" class="text-xs text-slate-500 dark:text-slate-400 mt-1">Penurunan terbesar: Rp0</p>
+                </div>
+            </div>
+
+            <!-- Win Rate -->
+            <div class="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 relative overflow-hidden group hover:border-slate-300 dark:hover:border-slate-700 transition shadow-sm dark:shadow-none animate-fade-in" style="animation-delay: 0.2s;">
+                <div class="absolute -right-4 -bottom-4 w-24 h-24 bg-blue-500/10 rounded-full blur-xl group-hover:bg-blue-500/20 transition"></div>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm font-medium text-slate-500 dark:text-slate-400">Win Rate</span>
+                    <div class="p-2 rounded-lg bg-blue-500/10 text-blue-500 dark:text-blue-400">
+                        <i data-lucide="award" class="w-5 h-5"></i>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <h2 id="metric-winrate" class="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">0%</h2>
+                    <p id="metric-win-loss-count" class="text-xs text-slate-500 dark:text-slate-400 mt-1">0 Win / 0 Loss</p>
+                </div>
+            </div>
+
+            <!-- Profit Factor -->
+            <div class="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 relative overflow-hidden group hover:border-slate-300 dark:hover:border-slate-700 transition shadow-sm dark:shadow-none animate-fade-in" style="animation-delay: 0.3s;">
+                <div class="absolute -right-4 -bottom-4 w-24 h-24 bg-purple-500/10 rounded-full blur-xl group-hover:bg-purple-500/20 transition"></div>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm font-medium text-slate-500 dark:text-slate-400">Profit Factor</span>
+                    <div class="p-2 rounded-lg bg-purple-500/10 text-purple-500 dark:text-purple-400">
+                        <i data-lucide="activity" class="w-5 h-5"></i>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <h2 id="metric-profit-factor" class="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">0.00</h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Total Trade: <span id="metric-total-trades">0</span></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Equity Curve -->
+            <div class="lg:col-span-2 bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 flex flex-col justify-between shadow-sm dark:shadow-none">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center space-x-2">
+                        <i data-lucide="line-chart" class="w-5 h-5 text-brand-500 dark:text-brand-400"></i>
+                        <h3 class="font-semibold text-sm sm:text-base text-slate-900 dark:text-white">Kurva Ekuitas (Equity Growth)</h3>
+                    </div>
+                    <span class="text-xs text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full">Saldo IDR</span>
+                </div>
+                <div class="h-64 sm:h-72 w-full relative">
+                    <canvas id="equityChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Win/Loss Ratio Doughnut -->
+            <div class="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 flex flex-col justify-between shadow-sm dark:shadow-none">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center space-x-2">
+                        <i data-lucide="pie-chart" class="w-5 h-5 text-indigo-500 dark:text-indigo-400"></i>
+                        <h3 class="font-semibold text-sm sm:text-base text-slate-900 dark:text-white">Rasio Win / Loss</h3>
+                    </div>
+                </div>
+                <div class="h-64 sm:h-72 w-full relative flex items-center justify-center">
+                    <canvas id="winLossChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- NEW: Calendar PnL View -->
+        <div class="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 space-y-4 shadow-sm dark:shadow-none">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div class="flex items-center space-x-2">
+                    <i data-lucide="calendar" class="w-5 h-5 text-brand-500 dark:text-brand-400"></i>
+                    <h3 class="font-semibold text-base text-slate-900 dark:text-white">Kalender PnL Bulanan</h3>
+                </div>
+                <!-- Month & Year Controls -->
+                <div class="flex items-center space-x-2">
+                    <button onclick="changeMonth(-1)" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 transition">
+                        <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                    </button>
+                    <span id="calendarMonthLabel" class="text-xs sm:text-sm font-bold min-w-[140px] text-center text-slate-800 dark:text-slate-200">Bulan Tahun</span>
+                    <button onclick="changeMonth(1)" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 transition">
+                        <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Calendar Grid -->
+            <div class="overflow-x-auto">
+                <div class="min-w-[650px]">
+                    <!-- Day Headers -->
+                    <div class="grid grid-cols-7 gap-2 mb-2 text-center text-xs font-semibold text-slate-400 uppercase">
+                        <div>Senin</div><div>Selasa</div><div>Rabu</div><div>Kamis</div><div>Jumat</div><div>Sabtu</div><div>Minggu</div>
+                    </div>
+                    <!-- Days Container -->
+                    <div id="calendarGrid" class="grid grid-cols-7 gap-2">
+                        <!-- Rendered via JS -->
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center justify-end space-x-4 text-xs text-slate-500 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <div class="flex items-center space-x-1.5"><span class="w-3 h-3 rounded bg-emerald-500/20 border border-emerald-500/40"></span><span>Profit Harian</span></div>
+                <div class="flex items-center space-x-1.5"><span class="w-3 h-3 rounded bg-rose-500/20 border border-rose-500/40"></span><span>Loss Harian</span></div>
+            </div>
+        </div>
+
+        <!-- Trade History Section -->
+        <div class="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 space-y-4 shadow-sm dark:shadow-none">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div class="flex items-center space-x-2">
+                    <i data-lucide="history" class="w-5 h-5 text-brand-500 dark:text-brand-400"></i>
+                    <h3 class="font-semibold text-base text-slate-900 dark:text-white">Riwayat Transaksi</h3>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <!-- Search Input -->
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                            <i data-lucide="search" class="w-4 h-4"></i>
+                        </span>
+                        <input type="text" id="searchInput" oninput="filterTrades()" placeholder="Cari pair/catatan..." class="w-full sm:w-48 pl-9 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:border-brand-500">
+                    </div>
+                    <!-- Filter Status -->
+                    <select id="filterStatus" onchange="filterTrades()" class="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-brand-500">
+                        <option value="ALL">Semua Status</option>
+                        <option value="WIN">Win Saja</option>
+                        <option value="LOSS">Loss Saja</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Table Container -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                            <th class="py-3 px-4">Tanggal</th>
+                            <th class="py-3 px-4">Pair</th>
+                            <th class="py-3 px-4">Tipe</th>
+                            <th class="py-3 px-4">Entry / Exit</th>
+                            <th class="py-3 px-4">PnL Bersih</th>
+                            <th class="py-3 px-4">Psikologi / Catatan</th>
+                            <th class="py-3 px-4 text-right">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tradeTableBody" class="divide-y divide-slate-100 dark:divide-slate-800/60 text-sm">
+                        <!-- Rendered dynamically -->
+                    </tbody>
+                </table>
+            </div>
+            <!-- Empty state -->
+            <div id="emptyState" class="hidden py-12 text-center">
+                <i data-lucide="folder-open" class="w-12 h-12 text-slate-400 dark:text-slate-600 mx-auto mb-3"></i>
+                <p class="text-slate-500 dark:text-slate-400 text-sm">Belum ada catatan trading yang tersimpan.</p>
+                <button onclick="openTradeModal()" class="mt-3 text-xs text-brand-600 dark:text-brand-400 hover:underline font-medium">Mulai catat trade pertama Anda</button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-200 dark:border-slate-800 py-6 mt-12 bg-white/40 dark:bg-slate-900/40 text-center text-xs text-slate-500">
+        <p>Rekan PNL &copy; 2026. Data tersimpan aman di Browser Anda (<span class="text-brand-600 dark:text-brand-400 font-mono">localStorage</span>).</p>
+    </footer>
+
+    <!-- MODAL: Initial Capital & Drawdown Settings -->
+    <div id="capitalModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-sm w-full p-6 shadow-2xl animate-fade-in space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <h3 class="font-bold text-base text-slate-900 dark:text-white">Pengaturan Modal Awal</h3>
+                <button onclick="closeCapitalModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Masukkan modal awal akun trading Anda dalam Rupiah (IDR).</p>
+            <div>
+                <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Modal Awal (Rp)</label>
+                <input type="number" step="any" id="inputInitialCapital" placeholder="10000000" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-brand-500">
+            </div>
+            <div class="flex items-center justify-end space-x-2 pt-2">
+                <button onclick="closeCapitalModal()" class="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition">Batal</button>
+                <button onclick="saveInitialCapital()" class="px-4 py-2 text-xs font-semibold rounded-xl bg-brand-600 hover:bg-brand-500 text-white shadow-md transition">Simpan Modal</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Add/Edit Trade -->
+    <div id="tradeModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl animate-fade-in max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 mb-4">
+                <h3 id="modalTitle" class="font-bold text-lg text-slate-900 dark:text-white">Catat Posisi Trading Baru</h3>
+                <button onclick="closeTradeModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <form id="tradeForm" onsubmit="handleFormSubmit(event)" class="space-y-4">
+                <input type="hidden" id="tradeId">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Tanggal & Waktu</label>
+                        <input type="datetime-local" id="tradeDate" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Pair / Aset (Mis: BBCA / BTCUSDT)</label>
+                        <input type="text" id="tradePair" required placeholder="Cth: BBCA" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-800 dark:text-slate-200 uppercase focus:outline-none focus:border-brand-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Tipe Posisi</label>
+                        <select id="tradeType" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-brand-500">
+                            <option value="LONG">LONG (Buy)</option>
+                            <option value="SHORT">SHORT (Sell)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Harga Masuk (Rp)</label>
+                        <input type="number" step="any" id="tradeEntry" required placeholder="0" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Harga Keluar (Rp)</label>
+                        <input type="number" step="any" id="tradeExit" required placeholder="0" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-brand-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Ukuran Posisi / Lot / Qty</label>
+                        <input type="number" step="any" id="tradeSize" required placeholder="Cth: 100" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Fee / Komisi (Rp)</label>
+                        <input type="number" step="any" id="tradeFee" value="0" placeholder="0" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-brand-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Kondisi Psikologi</label>
+                        <select id="tradeEmotion" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-brand-500">
+                            <option value="Tenang & Disiplin">Tenang & Disiplin</option>
+                            <option value="FOMO / Kejar Harga">FOMO / Kejar Harga</option>
+                            <option value="Revenge Trade">Revenge Trade</option>
+                            <option value="Ragu-ragu / Cemas">Ragu-ragu / Cemas</option>
+                            <option value="Sabar Menunggu Setup">Sabar Menunggu Setup</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Strategi / Setup</label>
+                        <input type="text" id="tradeStrategy" placeholder="Cth: Breakout Resistance" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-brand-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Catatan Tambahan</label>
+                    <textarea id="tradeNotes" rows="2" placeholder="Alasan entry atau evaluasi trade..." class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-brand-500"></textarea>
+                </div>
+
+                <div class="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <button type="button" onclick="closeTradeModal()" class="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition">Batal</button>
+                    <button type="submit" class="px-5 py-2 text-xs font-semibold rounded-xl bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-600/30 transition">Simpan Trade</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Export/Import/Backup -->
+    <div id="exportModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl animate-fade-in space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <h3 class="font-bold text-lg text-slate-900 dark:text-white">Manajemen Data & Backup</h3>
+                <button onclick="closeExportModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Data tersimpan di perangkat ini. Anda dapat mengunduh cadangan file JSON atau memulihkannya kapan saja.</p>
+            
+            <div class="space-y-3 pt-2">
+                <button onclick="exportDataJSON()" class="w-full flex items-center justify-center space-x-2 py-2.5 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-white transition">
+                    <i data-lucide="download" class="w-4 h-4 text-brand-500 dark:text-brand-400"></i>
+                    <span>Download Backup (.JSON)</span>
+                </button>
+
+                <div class="relative">
+                    <input type="file" id="importFile" accept=".json" onchange="importDataJSON(event)" class="hidden">
+                    <button onclick="document.getElementById('importFile').click()" class="w-full flex items-center justify-center space-x-2 py-2.5 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-white transition">
+                        <i data-lucide="upload" class="w-4 h-4 text-blue-500 dark:text-blue-400"></i>
+                        <span>Pulihkan Data dari JSON</span>
+                    </button>
+                </div>
+
+                <div class="pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <button onclick="clearAllData()" class="w-full flex items-center justify-center space-x-2 py-2.5 px-4 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-xs font-semibold text-rose-500 dark:text-rose-400 transition">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        <span>Reset / Hapus Semua Data</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Logika & Interaksi -->
+    <script>
+        // Inisialisasi Icons
+        lucide.createIcons();
+
+        // State Utama
+        let trades = JSON.parse(localStorage.getItem('rekan_pnl_trades')) || [];
+        let initialCapital = parseFloat(localStorage.getItem('rekan_pnl_capital')) || 10000000;
+        let equityChartInstance = null;
+        let winLossChartInstance = null;
+
+        // Calendar Date State
+        let currentCalendarDate = new Date();
+
+        // Format Currency IDR
+        function formatIDR(amount) {
+            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(amount);
+        }
+
+        // Tema Toggle (Terang / Gelap)
+        function toggleTheme() {
+            const html = document.documentElement;
+            const isDark = html.classList.contains('dark');
+            if (isDark) {
+                html.classList.remove('dark');
+                localStorage.setItem('rekan_pnl_theme', 'light');
+                document.getElementById('theme-icon').setAttribute('data-lucide', 'moon');
+            } else {
+                html.classList.add('dark');
+                localStorage.setItem('rekan_pnl_theme', 'dark');
+                document.getElementById('theme-icon').setAttribute('data-lucide', 'sun');
+            }
+            lucide.createIcons();
+            renderCharts(trades); // Refresh chart colors
+        }
+
+        // Cek Tema Tersimpan
+        const savedTheme = localStorage.getItem('rekan_pnl_theme');
+        if (savedTheme === 'light') {
+            document.documentElement.classList.remove('dark');
+            document.getElementById('theme-icon')?.setAttribute('data-lucide', 'moon');
+        }
+
+        // Modal Capital
+        function openCapitalModal() {
+            document.getElementById('inputInitialCapital').value = initialCapital;
+            document.getElementById('capitalModal').classList.remove('hidden');
+        }
+        function closeCapitalModal() {
+            document.getElementById('capitalModal').classList.add('hidden');
+        }
+        function saveInitialCapital() {
+            const val = parseFloat(document.getElementById('inputInitialCapital').value);
+            if (isNaN(val) || val < 0) {
+                showToast('Masukkan jumlah modal yang valid!', 'error');
+                return;
+            }
+            initialCapital = val;
+            localStorage.setItem('rekan_pnl_capital', initialCapital);
+            closeCapitalModal();
+            saveAndRefresh();
+            showToast('Modal awal berhasil diperbarui!');
+        }
+
+        // Inisialisasi Tanggal Default pada Form
+        function setDefaultDate() {
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('tradeDate').value = now.toISOString().slice(0, 16);
+        }
+
+        // Buka / Tutup Modal Trade
+        function openTradeModal(editId = null) {
+            document.getElementById('tradeModal').classList.remove('hidden');
+            if (editId) {
+                document.getElementById('modalTitle').innerText = 'Edit Posisi Trading';
+                const trade = trades.find(t => t.id === editId);
+                if (trade) {
+                    document.getElementById('tradeId').value = trade.id;
+                    document.getElementById('tradeDate').value = trade.date;
+                    document.getElementById('tradePair').value = trade.pair;
+                    document.getElementById('tradeType').value = trade.type;
+                    document.getElementById('tradeEntry').value = trade.entry;
+                    document.getElementById('tradeExit').value = trade.exit;
+                    document.getElementById('tradeSize').value = trade.size;
+                    document.getElementById('tradeFee').value = trade.fee || 0;
+                    document.getElementById('tradeEmotion').value = trade.emotion || 'Tenang & Disiplin';
+                    document.getElementById('tradeStrategy').value = trade.strategy || '';
+                    document.getElementById('tradeNotes').value = trade.notes || '';
+                }
+            } else {
+                document.getElementById('modalTitle').innerText = 'Catat Posisi Trading Baru';
+                document.getElementById('tradeForm').reset();
+                document.getElementById('tradeId').value = '';
+                setDefaultDate();
+            }
+        }
+
+        function closeTradeModal() {
+            document.getElementById('tradeModal').classList.add('hidden');
+        }
+
+        function openExportModal() {
+            document.getElementById('exportModal').classList.remove('hidden');
+        }
+
+        function closeExportModal() {
+            document.getElementById('exportModal').classList.add('hidden');
+        }
+
+        // Notifikasi Toast
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bgClass = type === 'success' 
+                ? 'bg-emerald-100 dark:bg-emerald-950/90 border-emerald-500/50 text-emerald-800 dark:text-emerald-200' 
+                : 'bg-rose-100 dark:bg-rose-950/90 border-rose-500/50 text-rose-800 dark:text-rose-200';
+            
+            toast.className = `flex items-center space-x-2 px-4 py-3 rounded-xl border shadow-xl backdrop-blur-md text-xs font-medium animate-fade-in ${bgClass}`;
+            toast.innerHTML = `<i data-lucide="${type === 'success' ? 'check-circle-2' : 'alert-circle'}" class="w-4 h-4"></i><span>${message}</span>`;
+            
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(10px)';
+                toast.style.transition = 'all 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Submit Form Handler
+        function handleFormSubmit(event) {
+            event.preventDefault();
+            const id = document.getElementById('tradeId').value;
+            const date = document.getElementById('tradeDate').value;
+            const pair = document.getElementById('tradePair').value.trim().toUpperCase();
+            const type = document.getElementById('tradeType').value;
+            const entry = parseFloat(document.getElementById('tradeEntry').value);
+            const exit = parseFloat(document.getElementById('tradeExit').value);
+            const size = parseFloat(document.getElementById('tradeSize').value);
+            const fee = parseFloat(document.getElementById('tradeFee').value) || 0;
+            const emotion = document.getElementById('tradeEmotion').value;
+            const strategy = document.getElementById('tradeStrategy').value;
+            const notes = document.getElementById('tradeNotes').value;
+
+            let rawPnl = type === 'LONG' ? (exit - entry) * size : (entry - exit) * size;
+            const netPnl = rawPnl - fee;
+
+            const tradeData = {
+                id: id ? Number(id) : Date.now(),
+                date,
+                pair,
+                type,
+                entry,
+                exit,
+                size,
+                fee,
+                netPnl,
+                emotion,
+                strategy,
+                notes
+            };
+
+            if (id) {
+                const index = trades.findIndex(t => t.id === Number(id));
+                if (index !== -1) trades[index] = tradeData;
+                showToast('Trade berhasil diperbarui!');
+            } else {
+                trades.unshift(tradeData);
+                showToast('Trade baru berhasil disimpan!');
+            }
+
+            saveAndRefresh();
+            closeTradeModal();
+        }
+
+        // Hapus Trade
+        function deleteTrade(id) {
+            if (confirm('Apakah Anda yakin ingin menghapus catatan trade ini?')) {
+                trades = trades.filter(t => t.id !== id);
+                saveAndRefresh();
+                showToast('Catatan trade dihapus', 'error');
+            }
+        }
+
+        // Simpan ke LocalStorage & Refresh
+        function saveAndRefresh() {
+            trades.sort((a, b) => new Date(b.date) - new Date(a.date));
+            localStorage.setItem('rekan_pnl_trades', JSON.stringify(trades));
+            renderDashboard();
+            renderTable(trades);
+            renderCalendar();
+        }
+
+        // Filter Tabel
+        function filterTrades() {
+            const keyword = document.getElementById('searchInput').value.toLowerCase();
+            const statusFilter = document.getElementById('filterStatus').value;
+
+            const filtered = trades.filter(t => {
+                const matchesKeyword = t.pair.toLowerCase().includes(keyword) || (t.notes && t.notes.toLowerCase().includes(keyword)) || (t.strategy && t.strategy.toLowerCase().includes(keyword));
+                const isWin = t.netPnl >= 0;
+                let matchesStatus = true;
+                if (statusFilter === 'WIN') matchesStatus = isWin;
+                if (statusFilter === 'LOSS') matchesStatus = !isWin;
+
+                return matchesKeyword && matchesStatus;
+            });
+
+            renderTable(filtered);
+        }
+
+        // Render Tabel Riwayat
+        function renderTable(dataArray) {
+            const tbody = document.getElementById('tradeTableBody');
+            const emptyState = document.getElementById('emptyState');
+            tbody.innerHTML = '';
+
+            if (dataArray.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            dataArray.forEach(t => {
+                const isWin = t.netPnl >= 0;
+                const pnlClass = isWin ? 'text-emerald-500 dark:text-emerald-400 font-semibold' : 'text-rose-500 dark:text-rose-400 font-semibold';
+                const typeClass = t.type === 'LONG' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20';
+                const formattedDate = new Date(t.date).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 dark:hover:bg-slate-800/40 transition duration-150';
+                tr.innerHTML = `
+                    <td class="py-3 px-4 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">${formattedDate}</td>
+                    <td class="py-3 px-4 font-bold text-slate-900 dark:text-white">${t.pair}</td>
+                    <td class="py-3 px-4"><span class="px-2 py-0.5 text-[10px] font-bold rounded-md border ${typeClass}">${t.type}</span></td>
+                    <td class="py-3 px-4 text-xs text-slate-600 dark:text-slate-300 font-mono">Rp${t.entry.toLocaleString('id-ID')} → Rp${t.exit.toLocaleString('id-ID')}</td>
+                    <td class="py-3 px-4 text-xs font-mono ${pnlClass}">${isWin ? '+' : ''}${formatIDR(t.netPnl)}</td>
+                    <td class="py-3 px-4">
+                        <div class="text-xs text-slate-700 dark:text-slate-300 font-medium">${t.emotion || '-'}</div>
+                        <div class="text-[11px] text-slate-400 dark:text-slate-500 truncate max-w-xs">${t.strategy || t.notes || 'Tanpa catatan'}</div>
+                    </td>
+                    <td class="py-3 px-4 text-right space-x-1 whitespace-nowrap">
+                        <button onclick="openTradeModal(${t.id})" class="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition" title="Edit">
+                            <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                        </button>
+                        <button onclick="deleteTrade(${t.id})" class="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 dark:text-rose-400 transition" title="Hapus">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            lucide.createIcons();
+        }
+
+        // Render Calendar PnL View
+        function changeMonth(direction) {
+            currentCalendarDate.setMonth(currentCalendarDate.getMonth() + direction);
+            renderCalendar();
+        }
+
+        function renderCalendar() {
+            const year = currentCalendarDate.getFullYear();
+            const month = currentCalendarDate.getMonth();
+
+            const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+            document.getElementById('calendarMonthLabel').innerText = `${monthNames[month]} ${year}`;
+
+            // Map trades by date string YYYY-MM-DD
+            const dailyPnlMap = {};
+            trades.forEach(t => {
+                const dateKey = t.date.slice(0, 10);
+                if (!dailyPnlMap[dateKey]) dailyPnlMap[dateKey] = { pnl: 0, count: 0 };
+                dailyPnlMap[dateKey].pnl += t.netPnl;
+                dailyPnlMap[dateKey].count += 1;
+            });
+
+            const firstDayIndex = (new Date(year, month, 1).getDay() + 6) % 7; // Senin as 0
+            const totalDays = new Date(year, month + 1, 0).getDate();
+
+            const grid = document.getElementById('calendarGrid');
+            grid.innerHTML = '';
+
+            // Blank slots for previous month
+            for (let i = 0; i < firstDayIndex; i++) {
+                const emptyCell = document.createElement('div');
+                emptyCell.className = 'h-24 bg-slate-50/50 dark:bg-slate-900/30 rounded-xl border border-slate-100 dark:border-slate-800/40 opacity-40';
+                grid.appendChild(emptyCell);
+            }
+
+            // Days of current month
+            for (let day = 1; day <= totalDays; day++) {
+                const dayStr = String(day).padStart(2, '0');
+                const monthStr = String(month + 1).padStart(2, '0');
+                const dateKey = `${year}-${monthStr}-${dayStr}`;
+
+                const dayData = dailyPnlMap[dateKey];
+                const hasTrade = !!dayData;
+                const isProfit = hasTrade && dayData.pnl >= 0;
+
+                let bgClass = 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800';
+                let textPnlColor = 'text-slate-400 dark:text-slate-500';
+                let pnlText = '-';
+
+                if (hasTrade) {
+                    if (isProfit) {
+                        bgClass = 'bg-emerald-500/10 border-emerald-500/30 dark:bg-emerald-950/20 dark:border-emerald-500/30';
+                        textPnlColor = 'text-emerald-600 dark:text-emerald-400 font-bold';
+                        pnlText = `+${formatIDR(dayData.pnl)}`;
+                    } else {
+                        bgClass = 'bg-rose-500/10 border-rose-500/30 dark:bg-rose-950/20 dark:border-rose-500/30';
+                        textPnlColor = 'text-rose-600 dark:text-rose-400 font-bold';
+                        pnlText = formatIDR(dayData.pnl);
+                    }
+                }
+
+                const cell = document.createElement('div');
+                cell.className = `h-24 rounded-xl border p-2 flex flex-col justify-between transition hover:shadow-md ${bgClass}`;
+                cell.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-700 dark:text-slate-300">${day}</span>
+                        ${hasTrade ? `<span class="text-[9px] px-1.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium">${dayData.count} trade</span>` : ''}
+                    </div>
+                    <div class="text-right">
+                        <div class="text-xs sm:text-sm font-mono truncate ${textPnlColor}">${pnlText}</div>
+                    </div>
+                `;
+                grid.appendChild(cell);
+            }
+        }
+
+        // Render Dashboard Statistik & Perhitungan Drawdown
+        function renderDashboard() {
+            const totalTrades = trades.length;
+            let totalPnL = 0;
+            let wins = 0;
+            let losses = 0;
+            let grossProfit = 0;
+            let grossLoss = 0;
+
+            // Hitung kronologis untuk Equity & Drawdown
+            const sortedAsc = [...trades].sort((a, b) => new Date(a.date) - new Date(b.date));
+            let currentEquity = initialCapital;
+            let peakEquity = initialCapital;
+            let maxDrawdownVal = 0;
+            let maxDrawdownPercent = 0;
+
+            sortedAsc.forEach(t => {
+                totalPnL += t.netPnl;
+                currentEquity += t.netPnl;
+                if (currentEquity > peakEquity) {
+                    peakEquity = currentEquity;
+                }
+                const drawdown = peakEquity - currentEquity;
+                if (drawdown > maxDrawdownVal) {
+                    maxDrawdownVal = drawdown;
+                    maxDrawdownPercent = peakEquity > 0 ? (drawdown / peakEquity) * 100 : 0;
+                }
+
+                if (t.netPnl >= 0) {
+                    wins++;
+                    grossProfit += t.netPnl;
+                } else {
+                    losses++;
+                    grossLoss += Math.abs(t.netPnl);
+                }
+            });
+
+            const finalBalance = initialCapital + totalPnL;
+            const winRate = totalTrades > 0 ? ((wins / totalTrades) * 100).toFixed(1) : 0;
+            const profitFactor = grossLoss > 0 ? (grossProfit / grossLoss).toFixed(2) : (grossProfit > 0 ? 'Infinite' : '0.00');
+
+            // Update DOM Metrics
+            const pnlEl = document.getElementById('metric-total-pnl');
+            pnlEl.innerText = `${totalPnL >= 0 ? '+' : ''}${formatIDR(totalPnL)}`;
+            pnlEl.className = `text-xl sm:text-2xl font-bold tracking-tight ${totalPnL >= 0 ? 'text-emerald-500 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`;
+            
+            document.getElementById('metric-current-balance').innerText = `Saldo Akun: ${formatIDR(finalBalance)}`;
+            
+            const pnlIconBg = document.getElementById('pnl-icon-bg');
+            pnlIconBg.className = totalPnL >= 0 ? 'p-2 rounded-lg bg-emerald-500/10 text-emerald-500 dark:text-emerald-400' : 'p-2 rounded-lg bg-rose-500/10 text-rose-500 dark:text-rose-400';
+
+            document.getElementById('metric-drawdown').innerText = `${maxDrawdownPercent.toFixed(1)}%`;
+            document.getElementById('metric-drawdown-nominal').innerText = `Penurunan terbesar: -${formatIDR(maxDrawdownVal)}`;
+
+            document.getElementById('metric-winrate').innerText = `${winRate}%`;
+            document.getElementById('metric-win-loss-count').innerText = `${wins} Win / ${losses} Loss`;
+            document.getElementById('metric-profit-factor').innerText = profitFactor;
+            document.getElementById('metric-total-trades').innerText = totalTrades;
+
+            renderCharts(sortedAsc);
+        }
+
+        // Setup Charts dengan Chart.js
+        function renderCharts(sortedAsc) {
+            const isDark = document.documentElement.classList.contains('dark');
+            const textColor = isDark ? '#94a3b8' : '#64748b';
+            const gridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+
+            let cumulativeEquity = initialCapital;
+            const equityLabels = ['Modal Awal'];
+            const equityData = [initialCapital];
+
+            sortedAsc.forEach((t, index) => {
+                cumulativeEquity += t.netPnl;
+                equityLabels.push(`Trade #${index + 1} (${t.pair})`);
+                equityData.push(cumulativeEquity);
+            });
+
+            // Equity Chart
+            const ctxEquity = document.getElementById('equityChart').getContext('2d');
+            if (equityChartInstance) equityChartInstance.destroy();
+
+            equityChartInstance = new Chart(ctxEquity, {
+                type: 'line',
+                data: {
+                    labels: equityLabels,
+                    datasets: [{
+                        label: 'Saldo Ekuitas (Rp)',
+                        data: equityData,
+                        borderColor: '#6366f1',
+                        backgroundColor: isDark ? 'rgba(99, 102, 241, 0.1)' : 'rgba(99, 102, 241, 0.15)',
+                        borderWidth: 2.5,
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#6366f1'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let value = context.parsed.y || 0;
+                                    return ' Saldo: ' + formatIDR(value);
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 10 } } },
+                        y: { 
+                            grid: { color: gridColor }, 
+                            ticks: { 
+                                color: textColor, 
+                                font: { size: 10 },
+                                callback: function(value) {
+                                    if (value >= 1000000) return 'Rp' + (value/1000000).toFixed(1) + 'jt';
+                                    if (value >= 1000) return 'Rp' + (value/1000).toFixed(0) + 'rb';
+                                    return 'Rp' + value;
+                                }
+                            } 
+                        }
+                    }
+                }
+            });
+
+            // Win / Loss Doughnut Chart
+            const winsCount = trades.filter(t => t.netPnl >= 0).length;
+            const lossesCount = trades.filter(t => t.netPnl < 0).length;
+
+            const ctxWinLoss = document.getElementById('winLossChart').getContext('2d');
+            if (winLossChartInstance) winLossChartInstance.destroy();
+
+            winLossChartInstance = new Chart(ctxWinLoss, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Win', 'Loss'],
+                    datasets: [{
+                        data: [winsCount || (winsCount === 0 && lossesCount === 0 ? 1 : 0), lossesCount],
+                        backgroundColor: ['#10b981', '#f43f5e'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: textColor, font: { size: 11 } } }
+                    },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        // Export Data JSON
+        function exportDataJSON() {
+            const backupObj = {
+                initialCapital,
+                trades
+            };
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupObj, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `rekan_pnl_backup_${new Date().toISOString().slice(0,10)}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+            showToast('Backup data berhasil diunduh!');
+            closeExportModal();
+        }
+
+        // Import Data JSON
+        function importDataJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (Array.isArray(parsed)) {
+                        trades = parsed;
+                    } else if (parsed.trades && Array.isArray(parsed.trades)) {
+                        trades = parsed.trades;
+                        if (parsed.initialCapital) {
+                            initialCapital = parsed.initialCapital;
+                            localStorage.setItem('rekan_pnl_capital', initialCapital);
+                        }
+                    } else {
+                        throw new Error();
+                    }
+                    saveAndRefresh();
+                    showToast('Data berhasil dipulihkan!');
+                    closeExportModal();
+                } catch (err) {
+                    showToast('Format file tidak valid!', 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // Hapus Semua Data
+        function clearAllData() {
+            if (confirm('PERINGATAN: Semua riwayat trading akan dihapus permanen. Lanjutkan?')) {
+                trades = [];
+                saveAndRefresh();
+                showToast('Semua data berhasil dibersihkan', 'error');
+                closeExportModal();
+            }
+        }
+
+        // Jalankan saat pertama kali dimuat
+        window.onload = function() {
+            setDefaultDate();
+            saveAndRefresh();
+        };
+    </script>
+</body>
+</html>
